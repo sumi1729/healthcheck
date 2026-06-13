@@ -5,12 +5,22 @@ import '../models/health_record.dart';
 
 /// 実績テーブルの時刻セル。未登録は dateTime=null（「－」表示）。
 /// isPreviousDay が true のとき「前日」を時刻の前に小さく表示する。
+/// eventType はこのセルが表すイベント種別（タップ編集時の保存対象）。
+/// recordId は既存レコードのID。null なら未登録（タップ編集で新規挿入）。
 class TimeCell {
   final DateTime? dateTime;
   final bool isPreviousDay;
+  final String eventType;
+  final int? recordId;
 
-  const TimeCell(this.dateTime, this.isPreviousDay);
-  static const empty = TimeCell(null, false);
+  const TimeCell({
+    this.dateTime,
+    this.isPreviousDay = false,
+    required this.eventType,
+    this.recordId,
+  });
+
+  factory TimeCell.empty(String eventType) => TimeCell(eventType: eventType);
 }
 
 class ResultRow {
@@ -81,47 +91,76 @@ class ResultsViewModel extends ChangeNotifier {
     }
   }
 
-  /// 実時刻からセルを生成。表示日より前の暦日なら「前日」フラグを立てる。
-  TimeCell _toCell(DateTime? dt, DateTime day) {
-    if (dt == null) return TimeCell.empty;
-    return TimeCell(dt, LogicalDay.dateOnly(dt).isBefore(day));
+  /// レコードからセルを生成。表示日より前の暦日なら「前日」フラグを立てる。
+  /// r が null（未登録）でも eventType を保持し、タップ編集で新規挿入できる。
+  TimeCell _toCell(HealthRecord? r, String eventType, DateTime day) {
+    if (r == null) return TimeCell.empty(eventType);
+    return TimeCell(
+      dateTime: r.dateTime,
+      isPreviousDay: LogicalDay.dateOnly(r.dateTime).isBefore(day),
+      eventType: eventType,
+      recordId: r.id,
+    );
   }
 
   List<ResultRow> _computeRows(List<HealthRecord> records, DateTime day) {
     final rows = <ResultRow>[];
 
-    DateTime? first(String type) =>
-        records.where((r) => r.eventType == type).map((r) => r.dateTime).firstOrNull;
+    HealthRecord? first(String type) =>
+        records.where((r) => r.eventType == type).firstOrNull;
 
-    List<DateTime> all(String type) =>
-        records.where((r) => r.eventType == type).map((r) => r.dateTime).toList();
+    List<HealthRecord> all(String type) =>
+        records.where((r) => r.eventType == type).toList();
 
-    rows.add(ResultRow('睡眠', _toCell(first(EventType.sleep), day),
-        _toCell(first(EventType.wakeUp), day)));
-    rows.add(ResultRow('労働', _toCell(first(EventType.workStart), day),
-        _toCell(first(EventType.workEnd), day)));
+    rows.add(ResultRow(
+        '睡眠',
+        _toCell(first(EventType.sleep), EventType.sleep, day),
+        _toCell(first(EventType.wakeUp), EventType.wakeUp, day)));
+    rows.add(ResultRow(
+        '労働',
+        _toCell(first(EventType.workStart), EventType.workStart, day),
+        _toCell(first(EventType.workEnd), EventType.workEnd, day)));
 
-    _addPairedRows(rows, '昼寝', all(EventType.napStart), all(EventType.napEnd), day);
-    _addPairedRows(rows, '中途覚醒', all(EventType.midSleepStart),
-        all(EventType.midSleepEnd), day);
+    _addPairedRows(rows, '昼寝', EventType.napStart, EventType.napEnd,
+        all(EventType.napStart), all(EventType.napEnd), day);
+    _addPairedRows(rows, '中途覚醒', EventType.midSleepStart, EventType.midSleepEnd,
+        all(EventType.midSleepStart), all(EventType.midSleepEnd), day);
 
     return rows;
   }
 
   /// 開始・終了をインデックス順にペアリング。データなしでも1行表示。
-  void _addPairedRows(List<ResultRow> rows, String label, List<DateTime> starts,
-      List<DateTime> ends, DateTime day) {
+  void _addPairedRows(List<ResultRow> rows, String label, String startType,
+      String endType, List<HealthRecord> starts, List<HealthRecord> ends, DateTime day) {
     final count = max(starts.length, ends.length);
     if (count == 0) {
-      rows.add(ResultRow(label, TimeCell.empty, TimeCell.empty));
+      rows.add(ResultRow(
+          label, TimeCell.empty(startType), TimeCell.empty(endType)));
       return;
     }
     for (int i = 0; i < count; i++) {
       rows.add(ResultRow(
         label,
-        _toCell(i < starts.length ? starts[i] : null, day),
-        _toCell(i < ends.length ? ends[i] : null, day),
+        _toCell(i < starts.length ? starts[i] : null, startType, day),
+        _toCell(i < ends.length ? ends[i] : null, endType, day),
       ));
     }
+  }
+
+  /// セルの時刻を編集する。既存レコードなら更新、未登録なら新規挿入。
+  Future<void> editCell(TimeCell cell, DateTime newDateTime) async {
+    if (cell.recordId != null) {
+      await DatabaseHelper().update(HealthRecord(
+        id: cell.recordId,
+        eventType: cell.eventType,
+        dateTime: newDateTime,
+      ));
+    } else {
+      await DatabaseHelper().insert(HealthRecord(
+        eventType: cell.eventType,
+        dateTime: newDateTime,
+      ));
+    }
+    await loadRecords();
   }
 }

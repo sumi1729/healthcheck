@@ -34,6 +34,17 @@ class DatabaseHelper {
     return db.insert('health_records', record.toMap());
   }
 
+  /// 既存レコードを id で更新。
+  Future<int> update(HealthRecord record) async {
+    final db = await database;
+    return db.update(
+      'health_records',
+      record.toMap(),
+      where: 'id = ?',
+      whereArgs: [record.id],
+    );
+  }
+
   /// 指定範囲（両端含む）のレコードを日時昇順で取得。
   /// 実績画面では業務日を解決するため文脈を含む広めの範囲を渡す。
   Future<List<HealthRecord>> getRecordsInRange(

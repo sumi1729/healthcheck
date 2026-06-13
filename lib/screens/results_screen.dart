@@ -95,8 +95,8 @@ class _ResultsTable extends StatelessWidget {
           TableRow(
             children: [
               _cell(row.label, cellStyle, vertical: _dataVertical),
-              _timeCell(row.start, vertical: _dataVertical),
-              _timeCell(row.end, vertical: _dataVertical),
+              _timeCell(context, row.start, vertical: _dataVertical),
+              _timeCell(context, row.end, vertical: _dataVertical),
             ],
           ),
       ],
@@ -116,19 +116,18 @@ class _ResultsTable extends StatelessWidget {
         vertical: vertical);
   }
 
-  Widget _timeCell(TimeCell cell, {double vertical = _headerVertical}) {
+  Widget _timeCell(BuildContext context, TimeCell cell,
+      {double vertical = _headerVertical}) {
     const cellStyle = TextStyle(color: Colors.white, fontSize: 13);
     final dt = cell.dateTime;
+    final Widget content;
     if (dt == null) {
-      return _pad(
-          const Text('－',
-              style: cellStyle, strutStyle: _strut, textAlign: TextAlign.center),
-          vertical: vertical);
-    }
-    final time =
-        '${dt.hour.toString().padLeft(2, '0')}時${dt.minute.toString().padLeft(2, '0')}分';
-    return _pad(
-      Text.rich(
+      content = const Text('－',
+          style: cellStyle, strutStyle: _strut, textAlign: TextAlign.center);
+    } else {
+      final time =
+          '${dt.hour.toString().padLeft(2, '0')}時${dt.minute.toString().padLeft(2, '0')}分';
+      content = Text.rich(
         TextSpan(children: [
           TextSpan(text: time, style: cellStyle),
           if (cell.isPreviousDay)
@@ -139,9 +138,35 @@ class _ResultsTable extends StatelessWidget {
         ]),
         strutStyle: _strut,
         textAlign: TextAlign.center,
-      ),
-      vertical: vertical,
+      );
+    }
+    // セルをタップで日時編集（カレンダー → 時計）。データの有無に関わらず編集可。
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _editCell(context, cell),
+      child: _pad(content, vertical: vertical),
     );
+  }
+
+  /// セルをタップしたとき: カレンダーで日付選択 → OKで時計を表示 → 保存。
+  Future<void> _editCell(BuildContext context, TimeCell cell) async {
+    final vm = context.read<ResultsViewModel>();
+    final base = cell.dateTime ?? vm.selectedDate;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: base,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (date == null || !context.mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(cell.dateTime ?? DateTime.now()),
+    );
+    if (time == null || !context.mounted) return;
+    final dt =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    await vm.editCell(cell, dt);
   }
 
   Widget _pad(Widget child, {double vertical = _headerVertical}) {
