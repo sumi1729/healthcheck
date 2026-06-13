@@ -34,16 +34,35 @@ class DatabaseHelper {
     return db.insert('health_records', record.toMap());
   }
 
-  Future<List<HealthRecord>> getRecordsForDate(DateTime date) async {
+  /// 指定範囲（両端含む）のレコードを日時昇順で取得。
+  /// 実績画面では業務日を解決するため文脈を含む広めの範囲を渡す。
+  Future<List<HealthRecord>> getRecordsInRange(
+      DateTime startInclusive, DateTime endInclusive) async {
     final db = await database;
-    final start = DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
-    final end = DateTime(date.year, date.month, date.day, 23, 59, 59).millisecondsSinceEpoch;
     final maps = await db.query(
       'health_records',
       where: 'date_time >= ? AND date_time <= ?',
-      whereArgs: [start, end],
+      whereArgs: [
+        startInclusive.millisecondsSinceEpoch,
+        endInclusive.millisecondsSinceEpoch,
+      ],
       orderBy: 'date_time ASC',
     );
     return maps.map(HealthRecord.fromMap).toList();
+  }
+
+  /// 指定時刻以前で最新の「就寝」または「起床」レコード。
+  /// 中途覚醒の登録可否判定（直前の睡眠境界）に使用。なければ null。
+  Future<HealthRecord?> getLatestSleepBoundaryBefore(DateTime t) async {
+    final db = await database;
+    final maps = await db.query(
+      'health_records',
+      where: 'date_time <= ? AND event_type IN (?, ?)',
+      whereArgs: [t.millisecondsSinceEpoch, EventType.sleep, EventType.wakeUp],
+      orderBy: 'date_time DESC',
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return HealthRecord.fromMap(maps.first);
   }
 }

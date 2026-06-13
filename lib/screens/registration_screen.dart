@@ -77,12 +77,31 @@ class RegistrationScreen extends StatelessWidget {
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () async {
-              await context.read<RegistrationViewModel>().save();
-              if (context.mounted) {
+              final result = await context.read<RegistrationViewModel>().save();
+              if (!context.mounted) return;
+              if (result.success) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('登録しました'),
                     duration: Duration(seconds: 2),
+                  ),
+                );
+              } else {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: const Color(0xFF2A2A2A),
+                    title: const Text('登録できません',
+                        style: TextStyle(color: Colors.white)),
+                    content: Text(result.message!,
+                        style: const TextStyle(color: Colors.white70)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('OK',
+                            style: TextStyle(color: Color(0xFF4CAF50))),
+                      ),
+                    ],
                   ),
                 );
               }

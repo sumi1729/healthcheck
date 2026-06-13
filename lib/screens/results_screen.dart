@@ -76,6 +76,7 @@ class _ResultsTable extends StatelessWidget {
 
     return Table(
       border: TableBorder.all(color: const Color(0xFF424242)),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
         0: FlexColumnWidth(2),
         1: FlexColumnWidth(3),
@@ -94,18 +95,49 @@ class _ResultsTable extends StatelessWidget {
           TableRow(
             children: [
               _cell(row.label, cellStyle),
-              _cell(row.start, cellStyle),
-              _cell(row.end, cellStyle),
+              _timeCell(row.start),
+              _timeCell(row.end),
             ],
           ),
       ],
     );
   }
 
+  // 「前日」有無や列に依らず行の高さ・ベースラインを揃えるため strut を固定する。
+  static const _strut = StrutStyle(fontSize: 13, forceStrutHeight: true);
+
   Widget _cell(String text, TextStyle style) {
+    return _pad(Text(text,
+        style: style, strutStyle: _strut, textAlign: TextAlign.center));
+  }
+
+  Widget _timeCell(TimeCell cell) {
+    const cellStyle = TextStyle(color: Colors.white, fontSize: 13);
+    final dt = cell.dateTime;
+    if (dt == null) {
+      return _pad(const Text('－',
+          style: cellStyle, strutStyle: _strut, textAlign: TextAlign.center));
+    }
+    final time =
+        '${dt.hour.toString().padLeft(2, '0')}時${dt.minute.toString().padLeft(2, '0')}分';
+    return _pad(Text.rich(
+      TextSpan(children: [
+        TextSpan(text: time, style: cellStyle),
+        if (cell.isPreviousDay)
+          const TextSpan(
+            text: '（前日）',
+            style: TextStyle(color: Colors.white54, fontSize: 10),
+          ),
+      ]),
+      strutStyle: _strut,
+      textAlign: TextAlign.center,
+    ));
+  }
+
+  Widget _pad(Widget child) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      child: Text(text, style: style, textAlign: TextAlign.center),
+      child: child,
     );
   }
 }
