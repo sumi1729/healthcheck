@@ -42,4 +42,10 @@ class RegistrationViewModel extends ChangeNotifier {
       dateTime: _selectedDateTime,
     ));
   }
+
+  void reset() {
+    _selectedEventType = EventType.all.first;
+    _selectedDateTime = DateTime.now();
+    notifyListeners();
+  }
 }

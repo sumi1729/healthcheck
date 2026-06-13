@@ -87,7 +87,9 @@ class _HomeScreenState extends State<_HomeScreen> {
             currentIndex: _currentIndex,
             onTap: (i) {
               setState(() => _currentIndex = i);
-              if (i == 1) {
+              if (i == 0) {
+                context.read<RegistrationViewModel>().reset();
+              } else {
                 context.read<ResultsViewModel>().loadRecords();
               }
             },
