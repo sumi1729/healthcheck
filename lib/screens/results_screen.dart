@@ -94,9 +94,9 @@ class _ResultsTable extends StatelessWidget {
         for (final row in rows)
           TableRow(
             children: [
-              _cell(row.label, cellStyle),
-              _timeCell(row.start),
-              _timeCell(row.end),
+              _cell(row.label, cellStyle, vertical: _dataVertical),
+              _timeCell(row.start, vertical: _dataVertical),
+              _timeCell(row.end, vertical: _dataVertical),
             ],
           ),
       ],
@@ -106,37 +106,47 @@ class _ResultsTable extends StatelessWidget {
   // 「前日」有無や列に依らず行の高さ・ベースラインを揃えるため strut を固定する。
   static const _strut = StrutStyle(fontSize: 13, forceStrutHeight: true);
 
-  Widget _cell(String text, TextStyle style) {
-    return _pad(Text(text,
-        style: style, strutStyle: _strut, textAlign: TextAlign.center));
+  // ヘッダー行の縦余白。データ行はこの約1.3倍の高さにする。
+  static const _headerVertical = 10.0;
+  static const _dataVertical = 15.0;
+
+  Widget _cell(String text, TextStyle style, {double vertical = _headerVertical}) {
+    return _pad(
+        Text(text, style: style, strutStyle: _strut, textAlign: TextAlign.center),
+        vertical: vertical);
   }
 
-  Widget _timeCell(TimeCell cell) {
+  Widget _timeCell(TimeCell cell, {double vertical = _headerVertical}) {
     const cellStyle = TextStyle(color: Colors.white, fontSize: 13);
     final dt = cell.dateTime;
     if (dt == null) {
-      return _pad(const Text('－',
-          style: cellStyle, strutStyle: _strut, textAlign: TextAlign.center));
+      return _pad(
+          const Text('－',
+              style: cellStyle, strutStyle: _strut, textAlign: TextAlign.center),
+          vertical: vertical);
     }
     final time =
         '${dt.hour.toString().padLeft(2, '0')}時${dt.minute.toString().padLeft(2, '0')}分';
-    return _pad(Text.rich(
-      TextSpan(children: [
-        TextSpan(text: time, style: cellStyle),
-        if (cell.isPreviousDay)
-          const TextSpan(
-            text: '（前日）',
-            style: TextStyle(color: Colors.white54, fontSize: 10),
-          ),
-      ]),
-      strutStyle: _strut,
-      textAlign: TextAlign.center,
-    ));
+    return _pad(
+      Text.rich(
+        TextSpan(children: [
+          TextSpan(text: time, style: cellStyle),
+          if (cell.isPreviousDay)
+            const TextSpan(
+              text: '（前日）',
+              style: TextStyle(color: Colors.white54, fontSize: 10),
+            ),
+        ]),
+        strutStyle: _strut,
+        textAlign: TextAlign.center,
+      ),
+      vertical: vertical,
+    );
   }
 
-  Widget _pad(Widget child) {
+  Widget _pad(Widget child, {double vertical = _headerVertical}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: vertical),
       child: child,
     );
   }
