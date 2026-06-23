@@ -45,6 +45,16 @@ class DatabaseHelper {
     );
   }
 
+  /// 既存レコードを id で削除。
+  Future<int> delete(int id) async {
+    final db = await database;
+    return db.delete(
+      'health_records',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   /// 指定範囲（両端含む）のレコードを日時昇順で取得。
   /// 実績画面では業務日を解決するため文脈を含む広めの範囲を渡す。
   Future<List<HealthRecord>> getRecordsInRange(

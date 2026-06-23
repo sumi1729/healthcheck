@@ -163,4 +163,11 @@ class ResultsViewModel extends ChangeNotifier {
     }
     await loadRecords();
   }
+
+  /// セルの実績を削除する。未登録（recordId=null）なら何もしない。
+  Future<void> deleteCell(TimeCell cell) async {
+    if (cell.recordId == null) return;
+    await DatabaseHelper().delete(cell.recordId!);
+    await loadRecords();
+  }
 }

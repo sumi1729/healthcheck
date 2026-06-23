@@ -148,9 +148,22 @@ class _ResultsTable extends StatelessWidget {
     );
   }
 
-  /// セルをタップしたとき: カレンダーで日付選択 → OKで時計を表示 → 保存。
+  /// セルをタップしたとき:
+  /// 既に日時が入っている場合はまず「実績を削除しますか？」を確認し、
+  ///   はい → 削除（画面・DB）、いいえ → 編集（カレンダー → 時計）へ。
+  /// 未登録（「－」）の場合はそのまま編集へ。
   Future<void> _editCell(BuildContext context, TimeCell cell) async {
     final vm = context.read<ResultsViewModel>();
+
+    if (cell.dateTime != null) {
+      final delete = await _confirmDelete(context);
+      if (delete == null || !context.mounted) return;
+      if (delete) {
+        await vm.deleteCell(cell);
+        return;
+      }
+    }
+
     final base = cell.dateTime ?? vm.selectedDate;
     final date = await showDatePicker(
       context: context,
@@ -167,6 +180,31 @@ class _ResultsTable extends StatelessWidget {
     final dt =
         DateTime(date.year, date.month, date.day, time.hour, time.minute);
     await vm.editCell(cell, dt);
+  }
+
+  /// 「実績を削除しますか？」の確認ダイアログ。
+  /// はい=true / いいえ=false / ダイアログ外タップ=null。
+  Future<bool?> _confirmDelete(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('実績を削除しますか？',
+            style: TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('いいえ',
+                style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('はい',
+                style: TextStyle(color: Color(0xFF4CAF50))),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _pad(Widget child, {double vertical = _headerVertical}) {
