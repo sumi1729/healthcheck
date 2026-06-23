@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/registration_screen.dart';
 import 'screens/results_screen.dart';
+import 'services/lock_mode.dart';
 import 'viewmodels/registration_viewmodel.dart';
 import 'viewmodels/results_viewmodel.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LockMode.instance.initialize();
   runApp(const HealthCheckApp());
 }
 
@@ -35,7 +38,35 @@ class HealthCheckApp extends StatelessWidget {
           contentTextStyle: TextStyle(color: Colors.white),
         ),
       ),
-      home: const _HomeScreen(),
+      home: ValueListenableBuilder<bool>(
+        valueListenable: LockMode.instance.isLockMode,
+        builder: (context, isLockMode, _) =>
+            isLockMode ? const _LockRegistrationScreen() : const _HomeScreen(),
+      ),
+    );
+  }
+}
+
+/// ロック画面（QSタイル）経由で起動したときの画面。
+/// 登録のみ可能。実績画面へは遷移できない（BottomNavigation なし）。
+class _LockRegistrationScreen extends StatelessWidget {
+  const _LockRegistrationScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => RegistrationViewModel(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            '登録',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFF2A2A2A),
+          elevation: 0,
+        ),
+        body: const RegistrationScreen(),
+      ),
     );
   }
 }
